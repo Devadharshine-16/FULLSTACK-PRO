@@ -13,7 +13,10 @@ app.use(cors());
 app.use(express.json());
 
 // ----------------------- DB CONNECT -----------------------
-mongoose.connect("mongodb+srv://root:root@cluster0.k1wedwy.mongodb.net/courierdb")
+mongoose.connect(process.env.MONGO_URI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+})
   .then(() => console.log("✅ MongoDB Connected"))
   .catch(err => console.log("❌ MongoDB Error:", err));
 
@@ -47,7 +50,7 @@ app.post("/api/register", async (req, res) => {
   res.json({ message: "Registered successfully", token });
 });
 
-
+// ----------------------- LOGIN -----------------------
 app.post("/api/login", async (req, res) => {
   const { username, password } = req.body;
 
@@ -62,6 +65,7 @@ app.post("/api/login", async (req, res) => {
   res.json({ message: "Login successful", token });
 });
 
+// ----------------------- CREATE PARCEL -----------------------
 app.post("/api/parcel", auth, async (req, res) => {
   const { senderName, receiverName, origin, destination } = req.body;
 
@@ -103,7 +107,6 @@ app.put("/api/parcel/:trackingId", auth, async (req, res) => {
   res.json({ message: "Parcel updated successfully", parcel });
 });
 
-
 // ----------------------- DELETE PARCEL -----------------------
 app.delete("/api/parcel/:trackingId", auth, async (req, res) => {
   const parcel = await Parcel.findOneAndDelete({ trackingId: req.params.trackingId });
@@ -112,6 +115,6 @@ app.delete("/api/parcel/:trackingId", auth, async (req, res) => {
   res.json({ message: "Parcel deleted" });
 });
 
-
 // ----------------------- SERVER -----------------------
-app.listen(3000, () => console.log("🚀 Server running on port 3000"));
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
