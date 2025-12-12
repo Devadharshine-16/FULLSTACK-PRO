@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { Routes, Route, Link, useNavigate } from "react-router-dom";
 import "./App.css";
 
-// Updated backend URL
 const BASE_URL = "https://fullstack-pro-1.onrender.com/api";
 
 export default function App() {
@@ -19,7 +18,6 @@ export default function App() {
   );
 }
 
-// Navbar component
 function Navbar() {
   return (
     <nav style={{ padding: "10px" }}>
@@ -31,12 +29,10 @@ function Navbar() {
   );
 }
 
-// Home component
 function Home() {
   return <h2>Welcome to Courier Management System</h2>;
 }
 
-// Register component
 function Register() {
   const [form, setForm] = useState({ username: "", password: "" });
   const navigate = useNavigate();
@@ -49,6 +45,12 @@ function Register() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
       });
+
+      // check response content type
+      const contentType = res.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        throw new Error("Invalid response from server");
+      }
 
       const data = await res.json();
 
@@ -83,7 +85,6 @@ function Register() {
   );
 }
 
-// Login component
 function Login() {
   const [login, setLogin] = useState({ username: "", password: "" });
   const navigate = useNavigate();
@@ -96,6 +97,12 @@ function Login() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(login),
       });
+
+      const contentType = res.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        throw new Error("Invalid response from server");
+      }
+
       const data = await res.json();
 
       if (data.token) {
@@ -130,105 +137,73 @@ function Login() {
   );
 }
 
-// Add / Edit / Delete Parcel component
 function AddParcel() {
-  const [parcel, setParcel] = useState({
-    senderName: "",
-    receiverName: "",
-    origin: "",
-    destination: "",
-  });
-
+  const [parcel, setParcel] = useState({ senderName: "", receiverName: "", origin: "", destination: "" });
   const [parcels, setParcels] = useState([]);
   const [editingId, setEditingId] = useState(null);
-
-  const API = `${BASE_URL}/parcel`;
   const token = localStorage.getItem("token");
   const navigate = useNavigate();
 
-  // Load parcels
+  const API = `${BASE_URL}/parcel`;
+
   async function loadParcels() {
     if (!token) {
       navigate("/login");
       return;
     }
     try {
-      const res = await fetch(API, {
-        headers: { Authorization: "Bearer " + token },
-      });
+      const res = await fetch(API, { headers: { Authorization: "Bearer " + token } });
       if (!res.ok) throw new Error("Failed to fetch parcels");
       const data = await res.json();
       setParcels(data);
-    } catch (error) {
-      console.error(error);
-      alert(error.message);
+    } catch (err) {
+      alert(err.message);
     }
   }
 
-  useEffect(() => {
-    loadParcels();
-  }, []);
+  useEffect(() => { loadParcels(); }, []);
 
-  // Add or update parcel
   async function handleSubmit(e) {
     e.preventDefault();
-    if (!token) {
-      alert("Please login first");
-      navigate("/login");
-      return;
-    }
+    if (!token) { alert("Please login first"); navigate("/login"); return; }
+
     try {
       const method = editingId ? "PUT" : "POST";
       const url = editingId ? `${API}/${editingId}` : API;
       const res = await fetch(url, {
         method,
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: "Bearer " + token,
-        },
-        body: JSON.stringify(parcel),
+        headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
+        body: JSON.stringify(parcel)
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || "Operation failed");
-
-      alert(editingId ? "Parcel updated successfully" : "Parcel added successfully");
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.message || "Operation failed");
+      }
+      alert(editingId ? "Parcel updated" : "Parcel added");
       setParcel({ senderName: "", receiverName: "", origin: "", destination: "" });
       setEditingId(null);
       await loadParcels();
-    } catch (error) {
-      alert(error.message);
+    } catch (err) {
+      alert(err.message);
     }
   }
 
-  // Delete parcel
   async function deleteParcel(id) {
-    if (!window.confirm("Are you sure you want to delete this parcel?")) return;
-    if (!token) return alert("Please login first");
-
+    if (!window.confirm("Delete this parcel?")) return;
+    if (!token) { alert("Please login first"); return; }
     try {
-      const res = await fetch(`${API}/${id}`, {
-        method: "DELETE",
-        headers: { Authorization: "Bearer " + token },
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || "Failed to delete parcel");
-
-      alert("Parcel deleted successfully");
+      const res = await fetch(`${API}/${id}`, { method: "DELETE", headers: { Authorization: "Bearer " + token } });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.message || "Delete failed");
+      }
+      alert("Parcel deleted");
       await loadParcels();
-    } catch (error) {
-      alert(error.message);
-    }
+    } catch (err) { alert(err.message); }
   }
 
-  // Edit parcel
   function editParcel(p) {
-    setParcel({
-      senderName: p.senderName,
-      receiverName: p.receiverName,
-      origin: p.origin,
-      destination: p.destination,
-    });
-    // Use MongoDB _id for editing
+    setParcel({ senderName: p.senderName, receiverName: p.receiverName, origin: p.origin, destination: p.destination });
     setEditingId(p._id);
   }
 
@@ -236,41 +211,21 @@ function AddParcel() {
     <div>
       <h2>{editingId ? "Edit Parcel" : "Add Parcel"}</h2>
       <form onSubmit={handleSubmit}>
-        <input
-          placeholder="Sender Name"
-          value={parcel.senderName}
-          onChange={(e) => setParcel({ ...parcel, senderName: e.target.value })}
-        /><br />
-        <input
-          placeholder="Receiver Name"
-          value={parcel.receiverName}
-          onChange={(e) => setParcel({ ...parcel, receiverName: e.target.value })}
-        /><br />
-        <input
-          placeholder="Origin"
-          value={parcel.origin}
-          onChange={(e) => setParcel({ ...parcel, origin: e.target.value })}
-        /><br />
-        <input
-          placeholder="Destination"
-          value={parcel.destination}
-          onChange={(e) => setParcel({ ...parcel, destination: e.target.value })}
-        /><br />
+        <input placeholder="Sender Name" value={parcel.senderName} onChange={e => setParcel({ ...parcel, senderName: e.target.value })} /><br />
+        <input placeholder="Receiver Name" value={parcel.receiverName} onChange={e => setParcel({ ...parcel, receiverName: e.target.value })} /><br />
+        <input placeholder="Origin" value={parcel.origin} onChange={e => setParcel({ ...parcel, origin: e.target.value })} /><br />
+        <input placeholder="Destination" value={parcel.destination} onChange={e => setParcel({ ...parcel, destination: e.target.value })} /><br />
         <button>{editingId ? "Update Parcel" : "Add Parcel"}</button>
       </form>
-
       <hr />
-
       <h3>Your Parcels</h3>
       {parcels.length === 0 && <p>No parcels found.</p>}
-      {parcels.map((p) => (
+      {parcels.map(p => (
         <div key={p._id} style={{ marginBottom: "10px" }}>
           <b>{p.senderName}</b> → {p.receiverName} (ID: {p.trackingId})<br />
           {p.origin} ➝ {p.destination}<br />
           <button onClick={() => editParcel(p)}>Edit</button>
-          <button onClick={() => deleteParcel(p._id)} style={{ marginLeft: 10 }}>
-            Delete
-          </button>
+          <button onClick={() => deleteParcel(p._id)} style={{ marginLeft: 10 }}>Delete</button>
         </div>
       ))}
     </div>
