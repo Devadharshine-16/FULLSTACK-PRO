@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import { Routes, Route, Link, useNavigate } from "react-router-dom";
 import "./App.css";
 
-const BASE_URL = "https://fullstack-pro-1.onrender.com/api";
+// ✅ Correct backend URL
+const BASE_URL = "https://fullstack-pro-1.onrender.com";
 
 export default function App() {
   return (
@@ -33,6 +34,7 @@ function Home() {
   return <h2>Welcome to Courier Management System</h2>;
 }
 
+// ------------------ REGISTER ------------------
 function Register() {
   const [form, setForm] = useState({ username: "", password: "" });
   const navigate = useNavigate();
@@ -40,13 +42,13 @@ function Register() {
   async function handleSubmit(e) {
     e.preventDefault();
     try {
-      const res = await fetch(`${BASE_URL}/register`, {
+      const res = await fetch(`${BASE_URL}/api/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
       });
 
-      // check response content type
+      // Ensure JSON response
       const contentType = res.headers.get("content-type");
       if (!contentType || !contentType.includes("application/json")) {
         throw new Error("Invalid response from server");
@@ -85,6 +87,7 @@ function Register() {
   );
 }
 
+// ------------------ LOGIN ------------------
 function Login() {
   const [login, setLogin] = useState({ username: "", password: "" });
   const navigate = useNavigate();
@@ -92,7 +95,7 @@ function Login() {
   async function handleSubmit(e) {
     e.preventDefault();
     try {
-      const res = await fetch(`${BASE_URL}/login`, {
+      const res = await fetch(`${BASE_URL}/api/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(login),
@@ -137,32 +140,35 @@ function Login() {
   );
 }
 
+// ------------------ ADD / EDIT / DELETE PARCEL ------------------
 function AddParcel() {
-  const [parcel, setParcel] = useState({ senderName: "", receiverName: "", origin: "", destination: "" });
+  const [parcel, setParcel] = useState({
+    senderName: "",
+    receiverName: "",
+    origin: "",
+    destination: "",
+  });
   const [parcels, setParcels] = useState([]);
   const [editingId, setEditingId] = useState(null);
+
   const token = localStorage.getItem("token");
   const navigate = useNavigate();
+  const API = `${BASE_URL}/api/parcel`;
 
-  const API = `${BASE_URL}/parcel`;
-
+  // Load parcels
   async function loadParcels() {
-    if (!token) {
-      navigate("/login");
-      return;
-    }
+    if (!token) { navigate("/login"); return; }
     try {
       const res = await fetch(API, { headers: { Authorization: "Bearer " + token } });
       if (!res.ok) throw new Error("Failed to fetch parcels");
       const data = await res.json();
       setParcels(data);
-    } catch (err) {
-      alert(err.message);
-    }
+    } catch (err) { alert(err.message); }
   }
 
   useEffect(() => { loadParcels(); }, []);
 
+  // Add or update parcel
   async function handleSubmit(e) {
     e.preventDefault();
     if (!token) { alert("Please login first"); navigate("/login"); return; }
@@ -175,33 +181,36 @@ function AddParcel() {
         headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
         body: JSON.stringify(parcel)
       });
+
       if (!res.ok) {
         const data = await res.json();
         throw new Error(data.message || "Operation failed");
       }
-      alert(editingId ? "Parcel updated" : "Parcel added");
+
+      alert(editingId ? "Parcel updated successfully" : "Parcel added successfully");
       setParcel({ senderName: "", receiverName: "", origin: "", destination: "" });
       setEditingId(null);
       await loadParcels();
-    } catch (err) {
-      alert(err.message);
-    }
+    } catch (err) { alert(err.message); }
   }
 
+  // Delete parcel
   async function deleteParcel(id) {
     if (!window.confirm("Delete this parcel?")) return;
     if (!token) { alert("Please login first"); return; }
+
     try {
       const res = await fetch(`${API}/${id}`, { method: "DELETE", headers: { Authorization: "Bearer " + token } });
       if (!res.ok) {
         const data = await res.json();
         throw new Error(data.message || "Delete failed");
       }
-      alert("Parcel deleted");
+      alert("Parcel deleted successfully");
       await loadParcels();
     } catch (err) { alert(err.message); }
   }
 
+  // Edit parcel
   function editParcel(p) {
     setParcel({ senderName: p.senderName, receiverName: p.receiverName, origin: p.origin, destination: p.destination });
     setEditingId(p._id);
