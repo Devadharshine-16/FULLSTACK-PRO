@@ -2,9 +2,6 @@ import { useState, useEffect } from "react";
 import { Routes, Route, Link, useNavigate } from "react-router-dom";
 import "./App.css";
 
-// ✅ Correct backend URL
-const BASE_URL = "https://fullstack-pro-1.onrender.com";
-
 export default function App() {
   return (
     <div>
@@ -19,6 +16,7 @@ export default function App() {
   );
 }
 
+// Navbar component
 function Navbar() {
   return (
     <nav style={{ padding: "10px" }}>
@@ -30,40 +28,29 @@ function Navbar() {
   );
 }
 
+// Home component
 function Home() {
   return <h2>Welcome to Courier Management System</h2>;
 }
 
-// ------------------ REGISTER ------------------
+// Register component
 function Register() {
   const [form, setForm] = useState({ username: "", password: "" });
-  const navigate = useNavigate();
 
   async function handleSubmit(e) {
     e.preventDefault();
+
     try {
-      const res = await fetch(`${BASE_URL}/api/register`, {
+      const res = await fetch("https://fullstack-pro-1.onrender.com/api/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
       });
 
-      // Ensure JSON response
-      const contentType = res.headers.get("content-type");
-      if (!contentType || !contentType.includes("application/json")) {
-        throw new Error("Invalid response from server");
-      }
-
       const data = await res.json();
-
-      if (data.token) {
-        alert("Registered successfully! Please login.");
-        navigate("/login");
-      } else {
-        alert(data.message);
-      }
-    } catch (error) {
-      alert("Registration failed: " + error.message);
+      alert(data.message || "Registered successfully!");
+    } catch (err) {
+      alert("Registration failed: " + err.message);
     }
   }
 
@@ -87,24 +74,20 @@ function Register() {
   );
 }
 
-// ------------------ LOGIN ------------------
+// Login component
 function Login() {
   const [login, setLogin] = useState({ username: "", password: "" });
   const navigate = useNavigate();
 
   async function handleSubmit(e) {
     e.preventDefault();
+
     try {
-      const res = await fetch(`${BASE_URL}/api/login`, {
+      const res = await fetch("https://fullstack-pro-1.onrender.com/api/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(login),
       });
-
-      const contentType = res.headers.get("content-type");
-      if (!contentType || !contentType.includes("application/json")) {
-        throw new Error("Invalid response from server");
-      }
 
       const data = await res.json();
 
@@ -113,10 +96,10 @@ function Login() {
         alert("Login Successful");
         navigate("/add");
       } else {
-        alert(data.message);
+        alert(data.message || "Login failed");
       }
-    } catch (error) {
-      alert("Login failed: " + error.message);
+    } catch (err) {
+      alert("Login failed: " + err.message);
     }
   }
 
@@ -140,7 +123,7 @@ function Login() {
   );
 }
 
-// ------------------ ADD / EDIT / DELETE PARCEL ------------------
+// Add / Edit / Delete Parcel component
 function AddParcel() {
   const [parcel, setParcel] = useState({
     senderName: "",
@@ -150,25 +133,29 @@ function AddParcel() {
   });
   const [parcels, setParcels] = useState([]);
   const [editingId, setEditingId] = useState(null);
-
   const token = localStorage.getItem("token");
   const navigate = useNavigate();
-  const API = `${BASE_URL}/api/parcel`;
 
-  // Load parcels
+  const API = "https://fullstack-pro-1.onrender.com/api/parcel";
+
   async function loadParcels() {
-    if (!token) { navigate("/login"); return; }
+    if (!token) {
+      navigate("/login");
+      return;
+    }
     try {
-      const res = await fetch(API, { headers: { Authorization: "Bearer " + token } });
-      if (!res.ok) throw new Error("Failed to fetch parcels");
+      const res = await fetch(API, {
+        headers: { Authorization: "Bearer " + token },
+      });
       const data = await res.json();
       setParcels(data);
-    } catch (err) { alert(err.message); }
+    } catch (err) {
+      alert(err.message);
+    }
   }
 
   useEffect(() => { loadParcels(); }, []);
 
-  // Add or update parcel
   async function handleSubmit(e) {
     e.preventDefault();
     if (!token) { alert("Please login first"); navigate("/login"); return; }
@@ -178,41 +165,48 @@ function AddParcel() {
       const url = editingId ? `${API}/${editingId}` : API;
       const res = await fetch(url, {
         method,
-        headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
-        body: JSON.stringify(parcel)
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer " + token,
+        },
+        body: JSON.stringify(parcel),
       });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Operation failed");
 
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.message || "Operation failed");
-      }
-
-      alert(editingId ? "Parcel updated successfully" : "Parcel added successfully");
+      alert(editingId ? "Parcel updated" : "Parcel added");
       setParcel({ senderName: "", receiverName: "", origin: "", destination: "" });
       setEditingId(null);
       await loadParcels();
-    } catch (err) { alert(err.message); }
+    } catch (err) {
+      alert(err.message);
+    }
   }
 
-  // Delete parcel
   async function deleteParcel(id) {
     if (!window.confirm("Delete this parcel?")) return;
     if (!token) { alert("Please login first"); return; }
-
     try {
-      const res = await fetch(`${API}/${id}`, { method: "DELETE", headers: { Authorization: "Bearer " + token } });
+      const res = await fetch(`${API}/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: "Bearer " + token },
+      });
       if (!res.ok) {
         const data = await res.json();
         throw new Error(data.message || "Delete failed");
       }
-      alert("Parcel deleted successfully");
+      alert("Parcel deleted");
       await loadParcels();
     } catch (err) { alert(err.message); }
   }
 
-  // Edit parcel
   function editParcel(p) {
-    setParcel({ senderName: p.senderName, receiverName: p.receiverName, origin: p.origin, destination: p.destination });
+    setParcel({
+      senderName: p.senderName,
+      receiverName: p.receiverName,
+      origin: p.origin,
+      destination: p.destination,
+    });
     setEditingId(p._id);
   }
 
@@ -228,7 +222,6 @@ function AddParcel() {
       </form>
       <hr />
       <h3>Your Parcels</h3>
-      {parcels.length === 0 && <p>No parcels found.</p>}
       {parcels.map(p => (
         <div key={p._id} style={{ marginBottom: "10px" }}>
           <b>{p.senderName}</b> → {p.receiverName} (ID: {p.trackingId})<br />
