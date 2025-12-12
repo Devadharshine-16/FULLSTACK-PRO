@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import { Routes, Route, Link, useNavigate } from "react-router-dom";
 import "./App.css";
 
-const BASE_URL = "https://fullstack-pro-1d3y.onrender.com/api";
+// Updated backend URL
+const BASE_URL = "https://fullstack-pro-1.onrender.com/api";
 
 export default function App() {
   return (
@@ -95,13 +96,12 @@ function Login() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(login),
       });
-
       const data = await res.json();
 
       if (data.token) {
         localStorage.setItem("token", data.token);
         alert("Login Successful");
-        navigate("/add"); // Redirect to Add Parcel page after login
+        navigate("/add");
       } else {
         alert(data.message);
       }
@@ -143,56 +143,52 @@ function AddParcel() {
   const [editingId, setEditingId] = useState(null);
 
   const API = `${BASE_URL}/parcel`;
-
   const token = localStorage.getItem("token");
+  const navigate = useNavigate();
 
   // Load parcels
   async function loadParcels() {
+    if (!token) {
+      navigate("/login");
+      return;
+    }
     try {
       const res = await fetch(API, {
         headers: { Authorization: "Bearer " + token },
       });
+      if (!res.ok) throw new Error("Failed to fetch parcels");
       const data = await res.json();
       setParcels(data);
     } catch (error) {
-      console.error("Failed to load parcels:", error);
+      console.error(error);
+      alert(error.message);
     }
   }
 
   useEffect(() => {
-    if (token) loadParcels();
-  }, [token]);
+    loadParcels();
+  }, []);
 
   // Add or update parcel
   async function handleSubmit(e) {
     e.preventDefault();
-
+    if (!token) {
+      alert("Please login first");
+      navigate("/login");
+      return;
+    }
     try {
-      let res;
-      if (editingId) {
-        // UPDATE
-        res = await fetch(`${API}/${editingId}`, {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: "Bearer " + token,
-          },
-          body: JSON.stringify(parcel),
-        });
-      } else {
-        // CREATE
-        res = await fetch(API, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: "Bearer " + token,
-          },
-          body: JSON.stringify(parcel),
-        });
-      }
-
+      const method = editingId ? "PUT" : "POST";
+      const url = editingId ? `${API}/${editingId}` : API;
+      const res = await fetch(url, {
+        method,
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer " + token,
+        },
+        body: JSON.stringify(parcel),
+      });
       const data = await res.json();
-
       if (!res.ok) throw new Error(data.message || "Operation failed");
 
       alert(editingId ? "Parcel updated successfully" : "Parcel added successfully");
@@ -205,15 +201,15 @@ function AddParcel() {
   }
 
   // Delete parcel
-  async function deleteParcel(trackingId) {
+  async function deleteParcel(id) {
     if (!window.confirm("Are you sure you want to delete this parcel?")) return;
+    if (!token) return alert("Please login first");
 
     try {
-      const res = await fetch(`${API}/${trackingId}`, {
+      const res = await fetch(`${API}/${id}`, {
         method: "DELETE",
         headers: { Authorization: "Bearer " + token },
       });
-
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Failed to delete parcel");
 
@@ -232,7 +228,8 @@ function AddParcel() {
       origin: p.origin,
       destination: p.destination,
     });
-    setEditingId(p.trackingId);
+    // Use MongoDB _id for editing
+    setEditingId(p._id);
   }
 
   return (
@@ -267,11 +264,11 @@ function AddParcel() {
       <h3>Your Parcels</h3>
       {parcels.length === 0 && <p>No parcels found.</p>}
       {parcels.map((p) => (
-        <div key={p.trackingId} style={{ marginBottom: "10px" }}>
+        <div key={p._id} style={{ marginBottom: "10px" }}>
           <b>{p.senderName}</b> → {p.receiverName} (ID: {p.trackingId})<br />
           {p.origin} ➝ {p.destination}<br />
           <button onClick={() => editParcel(p)}>Edit</button>
-          <button onClick={() => deleteParcel(p.trackingId)} style={{ marginLeft: 10 }}>
+          <button onClick={() => deleteParcel(p._id)} style={{ marginLeft: 10 }}>
             Delete
           </button>
         </div>
